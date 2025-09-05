@@ -9,44 +9,83 @@
       overflow: hidden;
       background: linear-gradient(180deg, #0f2027, #203a43, #2c5364);
       animation: fondo 10s infinite alternate;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       color: white;
-      text-align: center;
     }
+
     canvas {
       display: none;
       margin: auto;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.7);
       box-shadow: 0 0 20px #0f0;
     }
+
     #menu {
       position: absolute;
-      top: 30%;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
+      text-align: center;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px #0ff;
+      animation: aparecer 1s ease-out;
     }
-    input, button {
-      padding: 10px;
+
+    #menu h1 {
+      font-size: 36px;
+      margin-bottom: 20px;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
+    }
+
+    #menu button, #menu input {
+      padding: 10px 20px;
       margin: 10px;
-      font-size: 16px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background: #0ff;
+      color: #000;
+      cursor: pointer;
+      transition: transform 0.2s;
     }
+
+    #menu button:hover {
+      transform: scale(1.05);
+      background: #0f0;
+    }
+
     @keyframes fondo {
       0% { background: linear-gradient(180deg, #0f2027, #203a43, #2c5364); }
       100% { background: linear-gradient(180deg, #1a1a2e, #16213e, #0f3460); }
+    }
+
+    @keyframes aparecer {
+      from { opacity: 0; transform: translate(-50%, -60%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
     }
   </style>
 </head>
 <body>
 <div id="menu">
   <h1>Evita los bloques</h1>
-  <button onclick="startGame()">Jugar</button><br>
+  <button id="startBtn">Jugar</button><br>
   <input id="codeInput" placeholder="Código de progreso">
-  <button onclick="loadProgress()">Cargar</button>
+  <button id="loadBtn">Cargar</button>
 </div>
+
 <canvas id="gameCanvas" width="400" height="600"></canvas>
+
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const menu = document.getElementById('menu');
+const startBtn = document.getElementById('startBtn');
+const loadBtn = document.getElementById('loadBtn');
+const codeInput = document.getElementById('codeInput');
+
 let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
 let obstacles = [];
 let score = 0;
@@ -58,36 +97,26 @@ let highScore = localStorage.getItem('highScore') || 0;
 let activeEffect = null;
 let effectTimer = 0;
 
-const sounds = {
-  bonus: new Audio('bonus.mp3'),
-  explosion: new Audio('explosion.mp3'),
-  hit: new Audio('hit.mp3')
-};
-
-function playSound(name) {
-  if (sounds[name]) {
-    sounds[name].currentTime = 0;
-    sounds[name].play();
-  }
-}
-
 function startGame() {
-  document.getElementById('menu').style.display = 'none';
+  menu.style.display = 'none';
   canvas.style.display = 'block';
   update();
 }
 
 function loadProgress() {
-  const code = document.getElementById('codeInput').value;
+  const code = codeInput.value;
   const parts = code.split('-');
   if (parts.length === 4 && parts[0] === 'SCORE' && parts[2] === 'LIVES') {
     score = parseInt(parts[1]);
     lives = parseInt(parts[3]);
-    document.getElementById('menu').style.display = 'none';
+    menu.style.display = 'none';
     canvas.style.display = 'block';
     update();
   }
 }
+
+startBtn.addEventListener('click', startGame);
+loadBtn.addEventListener('click', loadProgress);
 
 function drawPlayer() {
   ctx.fillStyle = 'lime';
@@ -137,29 +166,24 @@ function applyEffect(type) {
       player.speed += 4;
       activeEffect = 'speed';
       effectTimer = 300;
-      playSound('bonus');
       break;
     case 'shrink':
       player.width = 25;
       player.height = 25;
       activeEffect = 'shrink';
       effectTimer = 300;
-      playSound('bonus');
       break;
     case 'grow':
       player.width = 60;
       player.height = 60;
       activeEffect = 'grow';
       effectTimer = 300;
-      playSound('bonus');
       break;
     case 'bomb':
       lives--;
-      playSound('explosion');
       break;
     case 'life':
       lives++;
-      playSound('bonus');
       break;
   }
 }
@@ -189,10 +213,8 @@ function checkCollision() {
     ) {
       if (obs.type === 'life') {
         lives++;
-        playSound('bonus');
       } else if (obs.type === 'danger') {
         lives--;
-        playSound('hit');
         if (lives <= 0) gameOver = true;
       } else if (obs.type === 'surprise') {
         const effects = ['speed', 'shrink', 'grow', 'bomb', 'life'];
@@ -243,12 +265,4 @@ function update() {
     requestAnimationFrame(update);
   } else if (paused) {
     drawPlayer();
-    drawObstacles();
-    drawHUD();
-    requestAnimationFrame(update);
-  } else {
-    showGameOver();
-  }
-}
-
-document.addEventListener('
+    drawObstacles
