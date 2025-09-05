@@ -12,14 +12,12 @@
       font-family: 'Segoe UI', sans-serif;
       color: white;
     }
-
     canvas {
       display: none;
       margin: auto;
       background: rgba(0, 0, 0, 0.7);
       box-shadow: 0 0 20px #0f0;
     }
-
     #menu {
       position: absolute;
       top: 50%;
@@ -32,14 +30,12 @@
       box-shadow: 0 0 20px #0ff;
       animation: aparecer 1s ease-out;
     }
-
     #menu h1 {
       font-size: 36px;
       margin-bottom: 20px;
       color: #0ff;
       text-shadow: 0 0 10px #0ff;
     }
-
     #menu button, #menu input {
       padding: 10px 20px;
       margin: 10px;
@@ -51,17 +47,14 @@
       cursor: pointer;
       transition: transform 0.2s;
     }
-
     #menu button:hover {
       transform: scale(1.05);
       background: #0f0;
     }
-
     @keyframes fondo {
       0% { background: linear-gradient(180deg, #0f2027, #203a43, #2c5364); }
       100% { background: linear-gradient(180deg, #1a1a2e, #16213e, #0f3460); }
     }
-
     @keyframes aparecer {
       from { opacity: 0; transform: translate(-50%, -60%); }
       to { opacity: 1; transform: translate(-50%, -50%); }
@@ -75,9 +68,7 @@
   <input id="codeInput" placeholder="Código de progreso">
   <button id="loadBtn">Cargar</button>
 </div>
-
 <canvas id="gameCanvas" width="400" height="600"></canvas>
-
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -96,6 +87,19 @@ let obstacleSpeed = 4;
 let highScore = localStorage.getItem('highScore') || 0;
 let activeEffect = null;
 let effectTimer = 0;
+
+const sounds = {
+  bonus: new Audio('bonus.mp3'),
+  explosion: new Audio('explosion.mp3'),
+  hit: new Audio('hit.mp3')
+};
+
+function playSound(name) {
+  if (sounds[name]) {
+    sounds[name].currentTime = 0;
+    sounds[name].play();
+  }
+}
 
 function startGame() {
   menu.style.display = 'none';
@@ -117,6 +121,23 @@ function loadProgress() {
 
 startBtn.addEventListener('click', startGame);
 loadBtn.addEventListener('click', loadProgress);
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
+  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
+  if (e.key === 'p') paused = !paused;
+  if (gameOver && e.key === 'Enter') {
+    player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
+    obstacles = [];
+    score = 0;
+    lives = 3;
+    obstacleSpeed = 4;
+    activeEffect = null;
+    effectTimer = 0;
+    gameOver = false;
+    update();
+  }
+});
 
 function drawPlayer() {
   ctx.fillStyle = 'lime';
@@ -166,24 +187,29 @@ function applyEffect(type) {
       player.speed += 4;
       activeEffect = 'speed';
       effectTimer = 300;
+      playSound('bonus');
       break;
     case 'shrink':
       player.width = 25;
       player.height = 25;
       activeEffect = 'shrink';
       effectTimer = 300;
+      playSound('bonus');
       break;
     case 'grow':
       player.width = 60;
       player.height = 60;
       activeEffect = 'grow';
       effectTimer = 300;
+      playSound('bonus');
       break;
     case 'bomb':
       lives--;
+      playSound('explosion');
       break;
     case 'life':
       lives++;
+      playSound('bonus');
       break;
   }
 }
@@ -213,56 +239,10 @@ function checkCollision() {
     ) {
       if (obs.type === 'life') {
         lives++;
+        playSound('bonus');
       } else if (obs.type === 'danger') {
         lives--;
+        playSound('hit');
         if (lives <= 0) gameOver = true;
       } else if (obs.type === 'surprise') {
         const effects = ['speed', 'shrink', 'grow', 'bomb', 'life'];
-        const chosen = effects[Math.floor(Math.random() * effects.length)];
-        applyEffect(chosen);
-      }
-      obstacles.splice(i, 1);
-    }
-  }
-}
-
-function drawHUD() {
-  ctx.fillStyle = 'white';
-  ctx.font = '18px Arial';
-  ctx.fillText('Puntos: ' + score, 10, 30);
-  ctx.fillText('Vidas: ' + lives, 10, 55);
-  ctx.fillText('Record: ' + highScore, 10, 80);
-  if (paused) {
-    ctx.font = '30px Arial';
-    ctx.fillText('PAUSA', 150, 300);
-    ctx.font = '16px Arial';
-    ctx.fillText('Código: SCORE-' + score + '-LIVES-' + lives, 80, 340);
-  }
-}
-
-function showGameOver() {
-  ctx.fillStyle = 'white';
-  ctx.font = '40px Arial';
-  ctx.fillText('¡Game Over!', 80, 280);
-  ctx.font = '20px Arial';
-  ctx.fillText('Presiona Enter para reiniciar', 80, 320);
-  if (score > highScore) {
-    localStorage.setItem('highScore', score);
-    ctx.fillText('¡Nuevo récord!', 120, 360);
-  }
-}
-
-function update() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!gameOver && !paused) {
-    drawPlayer();
-    drawObstacles();
-    drawHUD();
-    updateObstacles();
-    checkCollision();
-    updateEffect();
-    score++;
-    requestAnimationFrame(update);
-  } else if (paused) {
-    drawPlayer();
-    drawObstacles
