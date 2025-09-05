@@ -9,12 +9,26 @@
       overflow: hidden;
       background: linear-gradient(180deg, #0f2027, #203a43, #2c5364);
       animation: fondo 10s infinite alternate;
+      font-family: Arial, sans-serif;
+      color: white;
+      text-align: center;
     }
     canvas {
-      display: block;
+      display: none;
       margin: auto;
       background: rgba(0, 0, 0, 0.6);
       box-shadow: 0 0 20px #0f0;
+    }
+    #menu {
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
     }
     @keyframes fondo {
       0% { background: linear-gradient(180deg, #0f2027, #203a43, #2c5364); }
@@ -23,16 +37,22 @@
   </style>
 </head>
 <body>
+<div id="menu">
+  <h1>Evita los bloques</h1>
+  <button onclick="startGame()">Jugar</button><br>
+  <input id="codeInput" placeholder="Código de progreso">
+  <button onclick="loadProgress()">Cargar</button>
+</div>
 <canvas id="gameCanvas" width="400" height="600"></canvas>
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
 let obstacles = [];
 let score = 0;
 let lives = 3;
 let gameOver = false;
+let paused = false;
 let obstacleSpeed = 4;
 let highScore = localStorage.getItem('highScore') || 0;
 let activeEffect = null;
@@ -48,6 +68,24 @@ function playSound(name) {
   if (sounds[name]) {
     sounds[name].currentTime = 0;
     sounds[name].play();
+  }
+}
+
+function startGame() {
+  document.getElementById('menu').style.display = 'none';
+  canvas.style.display = 'block';
+  update();
+}
+
+function loadProgress() {
+  const code = document.getElementById('codeInput').value;
+  const parts = code.split('-');
+  if (parts.length === 4 && parts[0] === 'SCORE' && parts[2] === 'LIVES') {
+    score = parseInt(parts[1]);
+    lives = parseInt(parts[3]);
+    document.getElementById('menu').style.display = 'none';
+    canvas.style.display = 'block';
+    update();
   }
 }
 
@@ -72,10 +110,10 @@ function updateObstacles() {
     let color = 'red';
     let type = 'danger';
 
-    if (rand < 0.15) {
+    if (rand < 0.05) {
       color = 'lime';
       type = 'life';
-    } else if (rand < 0.25) {
+    } else if (rand < 0.12) {
       color = 'gold';
       type = 'surprise';
     }
@@ -172,6 +210,12 @@ function drawHUD() {
   ctx.fillText('Puntos: ' + score, 10, 30);
   ctx.fillText('Vidas: ' + lives, 10, 55);
   ctx.fillText('Record: ' + highScore, 10, 80);
+  if (paused) {
+    ctx.font = '30px Arial';
+    ctx.fillText('PAUSA', 150, 300);
+    ctx.font = '16px Arial';
+    ctx.fillText('Código: SCORE-' + score + '-LIVES-' + lives, 80, 340);
+  }
 }
 
 function showGameOver() {
@@ -188,7 +232,7 @@ function showGameOver() {
 
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!gameOver) {
+  if (!gameOver && !paused) {
     drawPlayer();
     drawObstacles();
     drawHUD();
@@ -197,28 +241,14 @@ function update() {
     updateEffect();
     score++;
     requestAnimationFrame(update);
+  } else if (paused) {
+    drawPlayer();
+    drawObstacles();
+    drawHUD();
+    requestAnimationFrame(update);
   } else {
     showGameOver();
   }
 }
 
-document.addEventListener('keydown', e => {
-  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
-  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
-  if (gameOver && e.key === 'Enter') {
-    player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
-    obstacles = [];
-    score = 0;
-    lives = 3;
-    obstacleSpeed = 4;
-    activeEffect = null;
-    effectTimer = 0;
-    gameOver = false;
-    update();
-  }
-});
-
-update();
-</script>
-</body>
-</html>
+document.addEventListener('
