@@ -4,8 +4,22 @@
   <meta charset="UTF-8">
   <title>Evita los bloques</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #222; }
-    canvas { display: block; margin: auto; background: #111; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0f2027, #203a43, #2c5364);
+      animation: fondo 10s infinite alternate;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 20px #0f0;
+    }
+    @keyframes fondo {
+      0% { background: linear-gradient(180deg, #0f2027, #203a43, #2c5364); }
+      100% { background: linear-gradient(180deg, #1a1a2e, #16213e, #0f3460); }
+    }
   </style>
 </head>
 <body>
@@ -17,8 +31,10 @@ const ctx = canvas.getContext('2d');
 let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
 let obstacles = [];
 let score = 0;
+let lives = 3;
 let gameOver = false;
-let obstacleSpeed = 5;
+let obstacleSpeed = 4;
+let highScore = localStorage.getItem('highScore') || 0;
 
 function drawPlayer() {
   ctx.fillStyle = 'lime';
@@ -26,41 +42,55 @@ function drawPlayer() {
 }
 
 function drawObstacles() {
-  ctx.fillStyle = 'red';
-  obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.width, obs.height));
+  obstacles.forEach(obs => {
+    ctx.fillStyle = obs.color;
+    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+  });
 }
 
 function updateObstacles() {
   obstacles.forEach(obs => obs.y += obstacleSpeed);
   obstacles = obstacles.filter(obs => obs.y < canvas.height);
-  if (Math.random() < 0.02) {
+  if (Math.random() < 0.03) {
+    const color = Math.random() < 0.2 ? 'lime' : 'red'; // 20% chance de bonus
     obstacles.push({
       x: Math.random() * (canvas.width - 40),
       y: 0,
       width: 40,
-      height: 40
+      height: 40,
+      color: color
     });
   }
-  if (score % 500 === 0 && score !== 0) obstacleSpeed += 0.5;
+  if (score % 300 === 0 && score !== 0) obstacleSpeed += 0.5;
 }
 
 function checkCollision() {
-  for (let obs of obstacles) {
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const obs = obstacles[i];
     if (
       player.x < obs.x + obs.width &&
       player.x + player.width > obs.x &&
       player.y < obs.y + obs.height &&
       player.y + player.height > obs.y
     ) {
-      gameOver = true;
+      if (obs.color === 'lime') {
+        lives++;
+        obstacles.splice(i, 1);
+      } else {
+        lives--;
+        obstacles.splice(i, 1);
+        if (lives <= 0) gameOver = true;
+      }
     }
   }
 }
 
-function drawScore() {
+function drawHUD() {
   ctx.fillStyle = 'white';
-  ctx.font = '20px Arial';
+  ctx.font = '18px Arial';
   ctx.fillText('Puntos: ' + score, 10, 30);
+  ctx.fillText('Vidas: ' + lives, 10, 55);
+  ctx.fillText('Record: ' + highScore, 10, 80);
 }
 
 function showGameOver() {
@@ -69,6 +99,10 @@ function showGameOver() {
   ctx.fillText('¡Game Over!', 80, 280);
   ctx.font = '20px Arial';
   ctx.fillText('Presiona Enter para reiniciar', 80, 320);
+  if (score > highScore) {
+    localStorage.setItem('highScore', score);
+    ctx.fillText('¡Nuevo récord!', 120, 360);
+  }
 }
 
 function update() {
@@ -76,7 +110,7 @@ function update() {
   if (!gameOver) {
     drawPlayer();
     drawObstacles();
-    drawScore();
+    drawHUD();
     updateObstacles();
     checkCollision();
     score++;
@@ -87,15 +121,14 @@ function update() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft' && player.x > 0) player.x -= player.speed;
-  if (e.key === 'ArrowRight' && player.x + player.width < canvas.width) player.x += player.speed;
-
+  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
+  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
   if (gameOver && e.key === 'Enter') {
-    // Reiniciar juego
     player.x = 180;
     obstacles = [];
     score = 0;
-    obstacleSpeed = 5;
+    lives = 3;
+    obstacleSpeed = 4;
     gameOver = false;
     update();
   }
