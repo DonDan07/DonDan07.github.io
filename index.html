@@ -2,42 +2,93 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Generador de Imágenes IA</title>
+  <title>Generador IA de Imágenes</title>
   <style>
-    body { font-family: Arial, text-align: center; margin-top: 50px; }
-    button { padding: 10px 20px; margin: 10px; font-size: 16px; }
-    img { max-width: 300px; margin-top: 20px; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #333;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+    }
+    input {
+      width: 300px;
+    }
+    #generateBtn {
+      background-color: #4CAF50;
+      color: white;
+    }
+    #upgradeBtn {
+      background-color: #2196F3;
+      color: white;
+    }
+    img {
+      max-width: 300px;
+      margin-top: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    #imageContainer {
+      margin-top: 30px;
+    }
+    #priceTag {
+      font-size: 14px;
+      color: #555;
+    }
   </style>
 </head>
 <body>
-  <h1>🖼️ Generador de Imágenes IA</h1>
+  <h1>🖼️ Generador IA de Imágenes</h1>
   <p id="status">Has generado 0 imágenes hoy.</p>
-  <button onclick="generateImage()">Generar Imagen</button>
-  <button onclick="upgrade()">Actualizar a Premium</button>
+  <input type="text" id="promptInput" placeholder="¿Qué imagen quieres generar?">
+  <br>
+  <button id="generateBtn" onclick="generateImage()">Generar Imagen</button>
+  <br>
+  <button id="upgradeBtn" onclick="upgrade()">Actualizar a Premium</button>
+  <p id="priceTag">Premium cuesta solo $0.99 (simulado)</p>
   <div id="imageContainer"></div>
 
   <script>
-    let count = 0;
-    let isPremium = false;
+    let count = sessionStorage.getItem('imageCount') || 0;
+    let isPremium = sessionStorage.getItem('isPremium') === 'true';
+
+    document.getElementById("status").textContent = `Has generado ${count} imágenes hoy.`;
 
     function generateImage() {
+      const prompt = document.getElementById("promptInput").value.trim();
+      if (!prompt) {
+        alert("Por favor escribe qué imagen quieres generar.");
+        return;
+      }
+
       if (!isPremium && count >= 7) {
         alert("Límite diario alcanzado. Actualiza a Premium para imágenes ilimitadas.");
         return;
       }
 
       count++;
+      sessionStorage.setItem('imageCount', count);
       document.getElementById("status").textContent = `Has generado ${count} imágenes hoy.`;
 
-      // Simulación de imagen generada (puedes reemplazar con una API real)
       const img = document.createElement("img");
-      img.src = `https://picsum.photos/seed/${Math.random()}/400/300`;
+      img.alt = prompt;
+      img.src = `https://picsum.photos/seed/${encodeURIComponent(prompt + Math.random())}/400/300`;
       document.getElementById("imageContainer").appendChild(img);
     }
 
     function upgrade() {
       isPremium = true;
-      alert("¡Ahora eres usuario Premium! Puedes generar imágenes ilimitadas.");
+      sessionStorage.setItem('isPremium', 'true');
+      alert("¡Gracias por tu compra de $0.99! Ahora eres usuario Premium.");
     }
   </script>
 </body>
