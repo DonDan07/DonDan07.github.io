@@ -7,30 +7,134 @@
     body {
       margin: 0;
       overflow: hidden;
-      background: linear-gradient(180deg, #0f2027, #203a43, #2c5364);
+      font-family: 'Segoe UI', sans-serif;
+      background: #000;
     }
+
     canvas {
       display: block;
       margin: auto;
-      background: rgba(0, 0, 0, 0.7);
-      box-shadow: 0 0 20px #0f0;
+      background: #111;
+      filter: none;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backdrop-filter: blur(3px);
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 2;
+    }
+
+    #overlay h1 {
+      font-size: 48px;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
+      margin-bottom: 20px;
+    }
+
+    #overlay button {
+      padding: 12px 24px;
+      font-size: 20px;
+      border: none;
+      border-radius: 8px;
+      background: #0ff;
+      color: #000;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    #overlay button:hover {
+      transform: scale(1.05);
+      background: #0f0;
+    }
+
+    #pauseMenu {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 3;
+    }
+
+    #pauseMenu h2 {
+      color: white;
+      font-size: 40px;
+      text-shadow: 0 0 10px #fff;
     }
   </style>
 </head>
 <body>
+<div id="overlay">
+  <h1>Evita los bloques</h1>
+  <button onclick="startGame()">Jugar</button>
+</div>
+
+<div id="pauseMenu">
+  <h2>PAUSA</h2>
+</div>
+
 <canvas id="gameCanvas" width="400" height="600"></canvas>
+
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const pauseMenu = document.getElementById('pauseMenu');
 
 let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
 let obstacles = [];
 let score = 0;
 let lives = 3;
 let gameOver = false;
+let paused = false;
 let obstacleSpeed = 4;
 let activeEffect = null;
 let effectTimer = 0;
+let gameStarted = false;
+
+function startGame() {
+  overlay.style.display = 'none';
+  canvas.style.filter = 'none';
+  gameStarted = true;
+  update();
+}
+
+function togglePause() {
+  if (!gameStarted || gameOver) return;
+  paused = !paused;
+  pauseMenu.style.display = paused ? 'flex' : 'none';
+  if (!paused) update();
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
+  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
+  if (e.key === 'p' || e.key === 'Escape') togglePause();
+  if (gameOver && e.key === 'Enter') {
+    player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
+    obstacles = [];
+    score = 0;
+    lives = 3;
+    obstacleSpeed = 4;
+    activeEffect = null;
+    effectTimer = 0;
+    gameOver = false;
+    update();
+  }
+});
 
 function drawPlayer() {
   ctx.fillStyle = 'lime';
@@ -156,6 +260,7 @@ function showGameOver() {
 }
 
 function update() {
+  if (paused || !gameStarted) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!gameOver) {
     drawPlayer();
@@ -170,24 +275,6 @@ function update() {
     showGameOver();
   }
 }
-
-document.addEventListener('keydown', e => {
-  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
-  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
-  if (gameOver && e.key === 'Enter') {
-    player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
-    obstacles = [];
-    score = 0;
-    lives = 3;
-    obstacleSpeed = 4;
-    activeEffect = null;
-    effectTimer = 0;
-    gameOver = false;
-    update();
-  }
-});
-
-update();
 </script>
 </body>
 </html>
