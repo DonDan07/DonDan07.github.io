@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de Imágenes IA</title>
+  <style>
+    body { font-family: Arial, text-align: center; margin-top: 50px; }
+    button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+    img { max-width: 300px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>🖼️ Generador de Imágenes IA</h1>
+  <p id="status">Has generado 0 imágenes hoy.</p>
+  <button onclick="generateImage()">Generar Imagen</button>
+  <button onclick="upgrade()">Actualizar a Premium</button>
+  <div id="imageContainer"></div>
+
+  <script>
+    let count = 0;
+    let isPremium = false;
+
+    function generateImage() {
+      if (!isPremium && count >= 7) {
+        alert("Límite diario alcanzado. Actualiza a Premium para imágenes ilimitadas.");
+        return;
+      }
+
+      count++;
+      document.getElementById("status").textContent = `Has generado ${count} imágenes hoy.`;
+
+      // Simulación de imagen generada (puedes reemplazar con una API real)
+      const img = document.createElement("img");
+      img.src = `https://picsum.photos/seed/${Math.random()}/400/300`;
+      document.getElementById("imageContainer").appendChild(img);
+    }
+
+    function upgrade() {
+      isPremium = true;
+      alert("¡Ahora eres usuario Premium! Puedes generar imágenes ilimitadas.");
+    }
+  </script>
+</body>
+</html>
