@@ -31,6 +31,7 @@
       align-items: center;
       flex-direction: column;
       z-index: 2;
+      animation: crt 1.5s infinite alternate;
     }
 
     #overlay h1 {
@@ -40,7 +41,7 @@
       margin-bottom: 20px;
     }
 
-    #overlay button {
+    #overlay button, #pauseMenu button {
       padding: 12px 24px;
       font-size: 20px;
       border: none;
@@ -51,7 +52,7 @@
       transition: transform 0.2s;
     }
 
-    #overlay button:hover {
+    #overlay button:hover, #pauseMenu button:hover {
       transform: scale(1.05);
       background: #0f0;
     }
@@ -66,6 +67,7 @@
       display: none;
       justify-content: center;
       align-items: center;
+      flex-direction: column;
       z-index: 3;
     }
 
@@ -73,208 +75,184 @@
       color: white;
       font-size: 40px;
       text-shadow: 0 0 10px #fff;
+      margin-bottom: 20px;
+    }
+
+    #pauseMenu p {
+      color: #0ff;
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    @keyframes crt {
+      0% { filter: blur(2px) brightness(1); }
+      100% { filter: blur(3px) brightness(1.1); }
     }
   </style>
 </head>
 <body>
-<div id="overlay">
-  <h1>Evita los bloques</h1>
-  <button onclick="startGame()">Jugar</button>
-</div>
+  <div id="overlay">
+    <h1>Evita los bloques</h1>
+    <button onclick="startGame()">Jugar</button>
+  </div>
 
-<div id="pauseMenu">
-  <h2>PAUSA</h2>
-</div>
+  <div id="pauseMenu">
+    <h2>PAUSA</h2>
+    <p id="saveCode">Código de guardado:</p>
+    <button onclick="returnToMenu()">Volver al inicio</button>
+  </div>
 
-<canvas id="gameCanvas" width="400" height="600"></canvas>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const overlay = document.getElementById('overlay');
-const pauseMenu = document.getElementById('pauseMenu');
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const pauseMenu = document.getElementById('pauseMenu');
+    const saveCodeDisplay = document.getElementById('saveCode');
 
-let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
-let obstacles = [];
-let score = 0;
-let lives = 3;
-let gameOver = false;
-let paused = false;
-let obstacleSpeed = 4;
-let activeEffect = null;
-let effectTimer = 0;
-let gameStarted = false;
+    let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
+    let obstacles = [];
+    let score = 0;
+    let lives = 3;
+    let gameOver = false;
+    let paused = false;
+    let obstacleSpeed = 4;
+    let activeEffect = null;
+    let effectTimer = 0;
+    let gameStarted = false;
 
-function startGame() {
-  overlay.style.display = 'none';
-  canvas.style.filter = 'none';
-  gameStarted = true;
-  update();
-}
-
-function togglePause() {
-  if (!gameStarted || gameOver) return;
-  paused = !paused;
-  pauseMenu.style.display = paused ? 'flex' : 'none';
-  if (!paused) update();
-}
-
-document.addEventListener('keydown', e => {
-  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
-  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
-  if (e.key === 'p' || e.key === 'Escape') togglePause();
-  if (gameOver && e.key === 'Enter') {
-    player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
-    obstacles = [];
-    score = 0;
-    lives = 3;
-    obstacleSpeed = 4;
-    activeEffect = null;
-    effectTimer = 0;
-    gameOver = false;
-    update();
-  }
-});
-
-function drawPlayer() {
-  ctx.fillStyle = 'lime';
-  ctx.fillRect(player.x, player.y, player.width, player.height);
-}
-
-function drawObstacles() {
-  obstacles.forEach(obs => {
-    ctx.fillStyle = obs.color;
-    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-  });
-}
-
-function updateObstacles() {
-  obstacles.forEach(obs => obs.y += obstacleSpeed);
-  obstacles = obstacles.filter(obs => obs.y < canvas.height);
-
-  if (Math.random() < 0.03) {
-    const rand = Math.random();
-    let color = 'red';
-    let type = 'danger';
-
-    if (rand < 0.05) {
-      color = 'lime';
-      type = 'life';
-    } else if (rand < 0.12) {
-      color = 'gold';
-      type = 'surprise';
+    function startGame() {
+      overlay.style.display = 'none';
+      canvas.style.filter = 'none';
+      gameStarted = true;
+      update();
     }
 
-    obstacles.push({
-      x: Math.random() * (canvas.width - 40),
-      y: 0,
-      width: 40,
-      height: 40,
-      color: color,
-      type: type
+    function togglePause() {
+      if (!gameStarted || gameOver) return;
+      paused = !paused;
+      pauseMenu.style.display = paused ? 'flex' : 'none';
+      if (paused) {
+        const id = Math.random().toString(36).substring(2, 6).toUpperCase();
+        saveCodeDisplay.textContent = `Código de guardado: SCORE-${score}-LIVES-${lives}-ID-${id}`;
+      } else {
+        update();
+      }
+    }
+
+    function returnToMenu() {
+      location.reload();
+    }
+
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
+      if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
+      if (e.key === 'p' || e.key === 'Escape') togglePause();
+      if (gameOver && e.key === 'Enter') {
+        player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
+        obstacles = [];
+        score = 0;
+        lives = 3;
+        obstacleSpeed = 4;
+        activeEffect = null;
+        effectTimer = 0;
+        gameOver = false;
+        update();
+      }
     });
-  }
 
-  if (score % 300 === 0 && score !== 0) obstacleSpeed += 0.5;
-}
-
-function applyEffect(type) {
-  switch (type) {
-    case 'speed':
-      player.speed += 4;
-      activeEffect = 'speed';
-      effectTimer = 300;
-      break;
-    case 'shrink':
-      player.width = 25;
-      player.height = 25;
-      activeEffect = 'shrink';
-      effectTimer = 300;
-      break;
-    case 'grow':
-      player.width = 60;
-      player.height = 60;
-      activeEffect = 'grow';
-      effectTimer = 300;
-      break;
-    case 'bomb':
-      lives--;
-      break;
-    case 'life':
-      lives++;
-      break;
-  }
-}
-
-function updateEffect() {
-  if (effectTimer > 0) {
-    effectTimer--;
-    if (effectTimer === 0) {
-      if (activeEffect === 'speed') player.speed -= 4;
-      if (activeEffect === 'shrink' || activeEffect === 'grow') {
-        player.width = 40;
-        player.height = 40;
-      }
-      activeEffect = null;
+    function drawPlayer() {
+      ctx.fillStyle = 'lime';
+      ctx.shadowColor = 'black';
+      ctx.shadowBlur = 6;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.shadowBlur = 0;
     }
-  }
-}
 
-function checkCollision() {
-  for (let i = obstacles.length - 1; i >= 0; i--) {
-    const obs = obstacles[i];
-    if (
-      player.x < obs.x + obs.width &&
-      player.x + player.width > obs.x &&
-      player.y < obs.y + obs.height &&
-      player.y + player.height > obs.y
-    ) {
-      if (obs.type === 'life') {
-        lives++;
-      } else if (obs.type === 'danger') {
-        lives--;
-        if (lives <= 0) gameOver = true;
-      } else if (obs.type === 'surprise') {
-        const effects = ['speed', 'shrink', 'grow', 'bomb', 'life'];
-        const chosen = effects[Math.floor(Math.random() * effects.length)];
-        applyEffect(chosen);
-      }
-      obstacles.splice(i, 1);
+    function drawObstacles() {
+      obstacles.forEach(obs => {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+
+        const grad = ctx.createLinearGradient(obs.x, obs.y, obs.x + obs.width, obs.y + obs.height);
+        grad.addColorStop(0, obs.color);
+        grad.addColorStop(1, 'white');
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obs.x + 2, obs.y + 2, obs.width - 4, obs.height - 4);
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      });
     }
-  }
-}
 
-function drawHUD() {
-  ctx.fillStyle = 'white';
-  ctx.font = '18px Arial';
-  ctx.fillText('Puntos: ' + score, 10, 30);
-  ctx.fillText('Vidas: ' + lives, 10, 55);
-}
+    function updateObstacles() {
+      obstacles.forEach(obs => obs.y += obstacleSpeed);
+      obstacles = obstacles.filter(obs => obs.y < canvas.height);
 
-function showGameOver() {
-  ctx.fillStyle = 'white';
-  ctx.font = '40px Arial';
-  ctx.fillText('¡Game Over!', 80, 280);
-  ctx.font = '20px Arial';
-  ctx.fillText('Presiona Enter para reiniciar', 80, 320);
-}
+      if (Math.random() < 0.03) {
+        const rand = Math.random();
+        let color = 'red';
+        let type = 'danger';
 
-function update() {
-  if (paused || !gameStarted) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!gameOver) {
-    drawPlayer();
-    drawObstacles();
-    drawHUD();
-    updateObstacles();
-    checkCollision();
-    updateEffect();
-    score++;
-    requestAnimationFrame(update);
-  } else {
-    showGameOver();
-  }
-}
-</script>
-</body>
-</html>
+        if (rand < 0.05) {
+          color = 'lime';
+          type = 'life';
+        } else if (rand < 0.12) {
+          color = 'gold';
+          type = 'surprise';
+        }
+
+        obstacles.push({
+          x: Math.random() * (canvas.width - 40),
+          y: 0,
+          width: 40,
+          height: 40,
+          color: color,
+          type: type
+        });
+      }
+
+      if (score % 300 === 0 && score !== 0) obstacleSpeed += 0.5;
+    }
+
+    function applyEffect(type) {
+      switch (type) {
+        case 'speed':
+          player.speed += 4;
+          activeEffect = 'speed';
+          effectTimer = 300;
+          break;
+        case 'shrink':
+          player.width = 25;
+          player.height = 25;
+          activeEffect = 'shrink';
+          effectTimer = 300;
+          break;
+        case 'grow':
+          player.width = 60;
+          player.height = 60;
+          activeEffect = 'grow';
+          effectTimer = 300;
+          break;
+        case 'bomb':
+          lives--;
+          break;
+        case 'life':
+          lives++;
+          break;
+      }
+    }
+
+    function updateEffect() {
+      if (effectTimer > 0) {
+        effectTimer--;
+        if (
