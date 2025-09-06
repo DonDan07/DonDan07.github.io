@@ -78,6 +78,9 @@
   <div id="pauseMenu">
     <h2>PAUSA</h2>
     <p id="saveCode">Código de guardado:</p>
+    <p id="coinCount">Monedas: 0</p>
+    <button onclick="buySpeed()">Mejorar velocidad (Costo: <span id="speedCost">5</span>)</button>
+    <button onclick="buyLife()">Comprar vida (Costo: <span id="lifeCost">5</span>)</button>
     <button onclick="returnToMenu()">Volver al inicio</button>
   </div>
 
@@ -90,17 +93,24 @@
     const pauseMenu = document.getElementById('pauseMenu');
     const saveCodeDisplay = document.getElementById('saveCode');
     const codeInput = document.getElementById('codeInput');
+    const coinCountDisplay = document.getElementById('coinCount');
+    const speedCostDisplay = document.getElementById('speedCost');
+    const lifeCostDisplay = document.getElementById('lifeCost');
 
     let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
     let obstacles = [];
     let score = 0;
     let lives = 3;
+    let coins = 0;
     let gameOver = false;
     let paused = false;
     let obstacleSpeed = 4;
     let activeEffect = null;
     let effectTimer = 0;
     let gameStarted = false;
+
+    let speedCost = 5;
+    let lifeCost = 5;
 
     function startGame() {
       overlay.style.display = 'none';
@@ -114,10 +124,13 @@
     function loadProgress() {
       const code = codeInput.value.trim();
       const parts = code.split('-');
-
       if (parts[0] === 'SCORE' && parts[2] === 'LIVES') {
         score = parseInt(parts[1]);
         lives = parseInt(parts[3]);
+        coins = parseInt(parts[5]);
+        speedCost = parseInt(parts[7]);
+        lifeCost = parseInt(parts[9]);
+        player.speed = parseInt(parts[11]);
         startGame();
       }
     }
@@ -126,9 +139,12 @@
       if (!gameStarted || gameOver) return;
       paused = !paused;
       pauseMenu.style.display = paused ? 'flex' : 'none';
+      coinCountDisplay.textContent = `Monedas: ${coins}`;
+      speedCostDisplay.textContent = speedCost;
+      lifeCostDisplay.textContent = lifeCost;
       if (paused) {
         const id = Math.random().toString(36).substring(2, 6).toUpperCase();
-        saveCodeDisplay.textContent = `Código de guardado: SCORE-${score}-LIVES-${lives}-ID-${id}`;
+        saveCodeDisplay.textContent = `Código de guardado: SCORE-${score}-LIVES-${lives}-COINS-${coins}-SCOST-${speedCost}-LCOST-${lifeCost}-SPD-${player.speed}-ID-${id}`;
       } else {
         update();
       }
@@ -136,6 +152,26 @@
 
     function returnToMenu() {
       location.reload();
+    }
+
+    function buySpeed() {
+      if (coins >= speedCost) {
+        coins -= speedCost;
+        player.speed += 2;
+        speedCost *= 2;
+        coinCountDisplay.textContent = `Monedas: ${coins}`;
+        speedCostDisplay.textContent = speedCost;
+      }
+    }
+
+    function buyLife() {
+      if (coins >= lifeCost) {
+        coins -= lifeCost;
+        lives += 1;
+        lifeCost *= 2;
+        coinCountDisplay.textContent = `Monedas: ${coins}`;
+        lifeCostDisplay.textContent = lifeCost;
+      }
     }
 
     document.addEventListener('keydown', e => {
@@ -147,9 +183,12 @@
         obstacles = [];
         score = 0;
         lives = 3;
+        coins = 0;
         obstacleSpeed = 4;
         activeEffect = null;
         effectTimer = 0;
+        speedCost = 5;
+        lifeCost = 5;
         gameOver = false;
         update();
       }
@@ -179,6 +218,9 @@
         if (rand < 0.05) {
           color = 'lime';
           type = 'life';
+        } else if (rand < 0.08) {
+          color = 'gold';
+          type = 'coin';
         } else if (rand < 0.12) {
           color = 'gold';
           type = 'surprise';
@@ -240,62 +282,65 @@
     }
 
     function checkCollision() {
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        const obs = obstacles[i];
+      obstacles.forEach((obs, i) => {
         if (
           player.x < obs.x + obs.width &&
           player.x + player.width > obs.x &&
           player.y < obs.y + obs.height &&
           player.y + player.height > obs.y
         ) {
-          if (obs.type === 'life') {
-            lives++;
-          } else if (obs.type === 'danger') {
+          if (obs.type === 'danger') {
             lives--;
-            if (lives <= 0) gameOver = true;
+          } else if (obs.type === 'life') {
+            lives++;
+          } else if (obs.type === 'coin') {
+            coins++;
           } else if (obs.type === 'surprise') {
-            const effects = ['speed', 'shrink', 'grow', 'bomb', 'life'];
-            const chosen = effects[Math.floor(Math.random() * effects.length)];
-            applyEffect(chosen);
+            const effects = ['speed', 'shrink', 'grow', 'bomb'];
+            applyEffect(effects[Math.floor(Math.random() * effects.length)]);
           }
           obstacles.splice(i, 1);
         }
+      });
+
+      if (lives <= 0) {
+        gameOver = true;
+        showGameOver();
       }
     }
 
     function drawHUD() {
       ctx.fillStyle = 'white';
-      ctx.font = '18px Arial';
-      ctx.fillText('Puntos: ' + score, 10, 30);
-      ctx.fillText('Vidas: ' + lives, 10, 55);
+      ctx.font = '20px Arial';
+      ctx.fillText(`Puntos: ${score}`, 10, 20);
+      ctx.fillText(`Vidas: ${lives}`, 10, 45);
+      ctx.fillText(`Monedas: ${coins}`, 10, 70);
     }
 
     function showGameOver() {
       ctx.fillStyle = 'white';
       ctx.font = '40px Arial';
-      ctx.fillText('¡Game Over!', 80, 280);
+      ctx.fillText('¡GAME OVER!', 80, 280);
       ctx.font = '20px Arial';
       ctx.fillText('Presiona Enter para reiniciar', 80, 320);
     }
 
     function update() {
-      if (paused) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (gameOver) {
-        showGameOver();
+      if (paused || gameOver) {
+        if (gameOver) showGameOver();
         return;
       }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       updateObstacles();
       updateEffect();
       checkCollision();
       drawPlayer();
       drawObstacles();
-      drawHUD();
 
-      score++; // sumar puntos
+      score++;
+      drawHUD();
 
       requestAnimationFrame(update);
     }
