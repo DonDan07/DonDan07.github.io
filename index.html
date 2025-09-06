@@ -108,17 +108,14 @@
       gameStarted = true;
       paused = false;
       gameOver = false;
-      score = 0;
-      lives = 3;
-      obstacles = [];
-      obstacleSpeed = 4;
       update();
     }
 
     function loadProgress() {
       const code = codeInput.value.trim();
       const parts = code.split('-');
-      if (parts.length === 5 && parts[0] === 'SCORE' && parts[2] === 'LIVES') {
+
+      if (parts[0] === 'SCORE' && parts[2] === 'LIVES') {
         score = parseInt(parts[1]);
         lives = parseInt(parts[3]);
         startGame();
