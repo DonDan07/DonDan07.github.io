@@ -17,7 +17,7 @@
       background: #111;
     }
 
-    #overlay {
+    #overlay, #pauseMenu {
       position: absolute;
       top: 0;
       left: 0;
@@ -39,7 +39,7 @@
       margin-bottom: 20px;
     }
 
-    #overlay input, #overlay button {
+    #overlay input, #overlay button, #pauseMenu button {
       padding: 12px 24px;
       font-size: 20px;
       border: none;
@@ -51,30 +51,19 @@
     }
 
     #pauseMenu {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.7);
       display: none;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
       z-index: 3;
     }
 
     #pauseMenu h2 {
-      color: white;
       font-size: 40px;
-      text-shadow: 0 0 10px #fff;
-      margin-bottom: 20px;
+      color: white;
+      margin-bottom: 10px;
     }
 
     #pauseMenu p {
-      color: #0ff;
       font-size: 18px;
-      margin-bottom: 20px;
+      color: #0ff;
     }
   </style>
 </head>
@@ -89,6 +78,7 @@
   <div id="pauseMenu">
     <h2>PAUSA</h2>
     <p id="saveCode">Código de guardado:</p>
+    <button onclick="returnToMenu()">Volver al inicio</button>
   </div>
 
   <canvas id="gameCanvas" width="400" height="600"></canvas>
@@ -116,6 +106,12 @@
       overlay.style.display = 'none';
       canvas.style.display = 'block';
       gameStarted = true;
+      paused = false;
+      gameOver = false;
+      score = 0;
+      lives = 3;
+      obstacles = [];
+      obstacleSpeed = 4;
       update();
     }
 
@@ -139,6 +135,10 @@
       } else {
         update();
       }
+    }
+
+    function returnToMenu() {
+      location.reload();
     }
 
     document.addEventListener('keydown', e => {
@@ -270,4 +270,38 @@
       ctx.fillStyle = 'white';
       ctx.font = '18px Arial';
       ctx.fillText('Puntos: ' + score, 10, 30);
-      ctx.fillText('V
+      ctx.fillText('Vidas: ' + lives, 10, 55);
+    }
+
+    function showGameOver() {
+      ctx.fillStyle = 'white';
+      ctx.font = '40px Arial';
+      ctx.fillText('¡Game Over!', 80, 280);
+      ctx.font = '20px Arial';
+      ctx.fillText('Presiona Enter para reiniciar', 80, 320);
+    }
+
+    function update() {
+      if (paused) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (gameOver) {
+        showGameOver();
+        return;
+      }
+
+      updateObstacles();
+      updateEffect();
+      checkCollision();
+      drawPlayer();
+      drawObstacles();
+      drawHUD();
+
+      score++; // sumar puntos
+
+      requestAnimationFrame(update);
+    }
+  </script>
+</body>
+</html>
