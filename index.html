@@ -72,7 +72,7 @@
       <li>→ / D : Mover a la derecha</li>
       <li>P o Esc : Pausar el juego</li>
       <li>Enter : Reiniciar tras Game Over</li>
-      <li>Recoge bloques dorados para ganar monedas</li>
+      <li>Recoge monedas doradas para ganar monedas</li>
       <li>Usa la tienda en pausa para mejorar velocidad o vidas</li>
       <li>Evita los bloques rojos y bombas</li>
       <li>Modo furia: 5 monedas seguidas = velocidad + puntos dobles</li>
@@ -215,8 +215,23 @@ function drawPlayer() {
 
 function drawObstacles() {
   obstacles.forEach(obs => {
-    ctx.fillStyle = obs.color;
-    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    if (obs.type === 'coin') {
+      // Dibujar moneda retro
+      ctx.beginPath();
+      ctx.arc(obs.x + obs.width / 2, obs.y + obs.height / 2, obs.width / 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'gold';
+      ctx.fill();
+      ctx.strokeStyle = 'orange';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = 'brown';
+      ctx.font = '10px Press Start 2P';
+      ctx.fillText("$", obs.x + obs.width / 2 - 5, obs.y + obs.height / 2 + 4);
+    } else {
+      // Bloques normales
+      ctx.fillStyle = obs.color;
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    }
   });
 }
 
@@ -238,37 +253,25 @@ function updateObstacles() {
   obstacles.forEach(obs => obs.y += obstacleSpeed);
   obstacles = obstacles.filter(obs => obs.y < canvas.height);
 
-  if (Math.random() < 0.03) {
+  if (Math.random() < 0.05) { // más monedas que antes
     const rand = Math.random();
-    let color = 'red';
     let type = 'danger';
-    if (rand < 0.05) { color = 'lime'; type = 'life'; }
-    else if (rand < 0.08) { color = 'gold'; type = 'coin'; }
-    else if (rand < 0.10) { color = 'orange'; type = 'bomb'; }
-    else if (rand < 0.12) { color = 'gold'; type = 'surprise'; }
-    obstacles.push({ x: Math.random() * (canvas.width - 40), y: 0, width: 40, height: 40, color, type });
+    let color = 'red';
+    if (rand < 0.25) { type = 'coin'; } // monedas aparecen con más probabilidad
+    obstacles.push({ x: Math.random() * (canvas.width - 40), y: 0, width: 30, height: 30, color, type });
   }
   if (score % 500 === 0 && score !== 0) obstacleSpeed += 0.5;
 }
 
 function applyEffect(type) {
-  switch (type) {
-    case 'speed': player.speed += 4; activeEffect = 'speed'; effectTimer = 300; break;
-    case 'shrink': player.width = 25; player.height = 25; activeEffect = 'shrink'; effectTimer = 300; break;
-    case 'grow': player.width = 60; player.height = 60; activeEffect = 'grow'; effectTimer = 300; break;
-    case 'bomb': lives--; obstacles = []; break;
-    case 'life': lives++; break;
-  }
+  if (type === 'bomb') { lives--; obstacles = []; }
+  if (type === 'life') { lives++; }
 }
 
 function updateEffect() {
   if (effectTimer > 0) {
     effectTimer--;
     if (effectTimer === 0) {
-      if (activeEffect === 'speed') player.speed -= 4;
-      if (activeEffect === 'shrink' || activeEffect === 'grow') {
-        player.width = 40; player.height = 40;
-      }
       activeEffect = null;
     }
   }
@@ -286,17 +289,11 @@ function checkCollision() {
     if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
         player.y < obs.y + obs.height && player.y + player.height > obs.y) {
       if (obs.type === 'danger') { lives--; coinStreak = 0; }
-      else if (obs.type === 'life') { lives++; }
       else if (obs.type === 'coin') {
         coins++; coinStreak++;
         if (coinStreak >= 5 && !furyActive) {
           furyActive = true; furyTimer = 300; player.speed += 3;
         }
-      }
-      else if (obs.type === 'bomb') { applyEffect('bomb'); }
-      else if (obs.type === 'surprise') {
-        const effects = ['speed','shrink','grow','bomb','life'];
-        applyEffect(effects[Math.floor(Math.random()*effects.length)]);
       }
       obstacles.splice(i, 1);
     }
