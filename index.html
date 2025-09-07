@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Evita los bloques - Arcade</title>
+  <title>Evita los bloques</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
     body {
@@ -15,24 +15,8 @@
     canvas {
       display: none;
       margin: auto;
-      background: linear-gradient(#111, #000);
-      box-shadow: 0 0 20px #0ff, inset 0 0 10px #0ff;
-      image-rendering: pixelated;
-      position: relative;
-    }
-    canvas::after {
-      content: "";
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: repeating-linear-gradient(
-        to bottom,
-        rgba(0,0,0,0.2),
-        rgba(0,0,0,0.2) 2px,
-        transparent 2px,
-        transparent 4px
-      );
-      pointer-events: none;
+      background: #111;
+      box-shadow: 0 0 20px #0ff;
     }
     #overlay, #pauseMenu, #controlsPopup {
       position: absolute;
@@ -43,6 +27,7 @@
       display: flex; justify-content: center; align-items: center;
       flex-direction: column;
       z-index: 2;
+      animation: crt 2s infinite alternate;
     }
     #overlay h1 {
       font-size: 24px; color: #0ff;
@@ -59,15 +44,21 @@
     #pauseMenu { display: none; z-index: 3; }
     #pauseMenu h2 { font-size: 20px; color: white; margin-bottom: 10px; }
     #pauseMenu p { font-size: 12px; color: #0ff; }
-    #controlsPopup { display: none; z-index: 4; text-align: center; padding: 20px; }
+    #controlsPopup {
+      display: none; z-index: 4; text-align: center; padding: 20px;
+    }
     #controlsPopup h3 { font-size: 16px; margin-bottom: 10px; }
     #controlsPopup ul { list-style: none; padding: 0; font-size: 12px; }
     #controlsPopup button { margin-top: 20px; }
+    @keyframes crt {
+      0% { filter: brightness(1); }
+      100% { filter: brightness(1.2); }
+    }
   </style>
 </head>
 <body>
   <div id="overlay">
-    <h1>🕹️ EVITA LOS BLOQUES</h1>
+    <h1>🎮 EVITA LOS BLOQUES</h1>
     <input id="codeInput" placeholder="Código de guardado">
     <button onclick="startGame()">Jugar</button>
     <button onclick="loadProgress()">Cargar progreso</button>
@@ -81,11 +72,10 @@
       <li>→ / D : Mover a la derecha</li>
       <li>P o Esc : Pausar el juego</li>
       <li>Enter : Reiniciar tras Game Over</li>
-      <li>Recoge monedas doradas 💰</li>
-      <li>Bloques verdes ❤️ = vida extra</li>
-      <li>Evita los rojos ❌ y bombas 💣</li>
-      <li>❓ Sorpresas = efecto aleatorio</li>
-      <li>🔥 5 monedas seguidas = modo furia</li>
+      <li>Recoge bloques dorados para ganar monedas</li>
+      <li>Usa la tienda en pausa para mejorar velocidad o vidas</li>
+      <li>Evita los bloques rojos y bombas</li>
+      <li>Modo furia: 5 monedas seguidas = velocidad + puntos dobles</li>
     </ul>
     <button onclick="hideControls()">Cerrar</button>
   </div>
@@ -104,65 +94,137 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const pauseMenu = document.getElementById('pauseMenu');
+const controlsPopup = document.getElementById('controlsPopup');
+const saveCodeDisplay = document.getElementById('saveCode');
+const codeInput = document.getElementById('codeInput');
+const coinCountDisplay = document.getElementById('coinCount');
+const speedCostDisplay = document.getElementById('speedCost');
+const lifeCostDisplay = document.getElementById('lifeCost');
 
 let player = { x: 180, y: 550, width: 40, height: 40, speed: 7 };
 let obstacles = [];
 let stars = [];
-let score = 0, lives = 3, coins = 0;
-let gameOver = false, paused = false, gameStarted = false;
+let score = 0;
+let lives = 3;
+let coins = 0;
+let gameOver = false;
+let paused = false;
 let obstacleSpeed = 4;
-let furyActive = false, furyTimer = 0, coinStreak = 0;
+let activeEffect = null;
+let effectTimer = 0;
+let gameStarted = false;
+let speedCost = 5;
+let lifeCost = 5;
+let furyActive = false;
+let furyTimer = 0;
+let coinStreak = 0;
 
-// 🎵 Sonidos retro
-const sounds = {
-  music: new Audio("https://files.catbox.moe/w1jok0.mp3"), // Música de fondo
-  coin: new Audio("https://files.catbox.moe/ivv2uy.wav"),
-  life: new Audio("https://files.catbox.moe/d38sc5.wav"),
-  hit: new Audio("https://files.catbox.moe/0vz9h6.wav"),
-  power: new Audio("https://files.catbox.moe/q6bd7m.wav")
-};
-sounds.music.loop = true;
-sounds.music.volume = 0.5;
-
-// === 🎨 Dibujos arcade de bloques ===
-function drawBlock(obs) {
-  ctx.save();
-  ctx.fillStyle = obs.color;
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 2;
-  ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-  ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-
-  ctx.fillStyle = "#fff";
-  ctx.font = "20px Press Start 2P";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  let symbol = "";
-  if (obs.type === "danger") symbol = "❌";
-  if (obs.type === "life") symbol = "❤️";
-  if (obs.type === "coin") symbol = "💰";
-  if (obs.type === "bomb") symbol = "💣";
-  if (obs.type === "surprise") symbol = "?";
-
-  ctx.fillText(symbol, obs.x + obs.width/2, obs.y + obs.height/2 + 2);
-  ctx.restore();
-}
-
-// === Inicializar estrellas de fondo ===
-function initStars() {
+function startGame() {
+  overlay.style.display = 'none';
+  canvas.style.display = 'block';
+  controlsPopup.style.display = 'none';
+  gameStarted = true;
+  paused = false;
+  gameOver = false;
+  score = 0;
+  lives = 3;
+  coins = 0;
+  obstacleSpeed = 4;
+  speedCost = 5;
+  lifeCost = 5;
+  furyActive = false;
+  furyTimer = 0;
+  coinStreak = 0;
   stars = Array.from({ length: 50 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
     size: Math.random() * 2 + 1
   }));
+  update();
+}
+
+function loadProgress() {
+  const code = codeInput.value.trim();
+  const parts = code.split('-');
+  if (parts[0] === 'SCORE' && parts[2] === 'LIVES') {
+    score = parseInt(parts[1]);
+    lives = parseInt(parts[3]);
+    coins = parseInt(parts[5]);
+    speedCost = parseInt(parts[7]);
+    lifeCost = parseInt(parts[9]);
+    player.speed = parseInt(parts[11]);
+    startGame();
+  }
+}
+
+function togglePause() {
+  if (!gameStarted || gameOver) return;
+  paused = !paused;
+  pauseMenu.style.display = paused ? 'flex' : 'none';
+  coinCountDisplay.textContent = `Monedas: ${coins}`;
+  speedCostDisplay.textContent = speedCost;
+  lifeCostDisplay.textContent = lifeCost;
+  if (paused) {
+    const id = Math.random().toString(36).substring(2, 6).toUpperCase();
+    saveCodeDisplay.textContent = `Código de guardado: SCORE-${score}-LIVES-${lives}-COINS-${coins}-SCOST-${speedCost}-LCOST-${lifeCost}-SPD-${player.speed}-ID-${id}`;
+  } else {
+    update();
+  }
+}
+
+function returnToMenu() {
+  location.reload();
+}
+
+function buySpeed() {
+  if (coins >= speedCost) {
+    coins -= speedCost;
+    player.speed += 2;
+    speedCost *= 2;
+    coinCountDisplay.textContent = `Monedas: ${coins}`;
+    speedCostDisplay.textContent = speedCost;
+  }
+}
+
+function buyLife() {
+  if (coins >= lifeCost) {
+    coins -= lifeCost;
+    lives += 1;
+    lifeCost *= 2;
+    coinCountDisplay.textContent = `Monedas: ${coins}`;
+    lifeCostDisplay.textContent = lifeCost;
+  }
+}
+
+function showControls() { controlsPopup.style.display = 'flex'; }
+function hideControls() { controlsPopup.style.display = 'none'; }
+
+document.addEventListener('keydown', e => {
+  if ((e.key === 'ArrowLeft' || e.key === 'a') && player.x > 0) player.x -= player.speed;
+  if ((e.key === 'ArrowRight' || e.key === 'd') && player.x + player.width < canvas.width) player.x += player.speed;
+  if (e.key === 'p' || e.key === 'Escape') togglePause();
+  if (gameOver && e.key === 'Enter') startGame();
+});
+
+function drawPlayer() {
+  ctx.fillStyle = furyActive ? 'yellow' : 'lime';
+  ctx.fillRect(player.x, player.y, player.width, player.height);
+}
+
+function drawObstacles() {
+  obstacles.forEach(obs => {
+    ctx.fillStyle = obs.color;
+    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+  });
 }
 
 function drawStars() {
   ctx.fillStyle = '#0ff';
   stars.forEach(star => {
     ctx.beginPath();
-    ctx.arc(star.x, star.y, star.size, 0, Math.PI*2);
+    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
     ctx.fill();
     star.y += 0.5;
     if (star.y > canvas.height) {
@@ -172,105 +234,106 @@ function drawStars() {
   });
 }
 
-function startGame() {
-  document.getElementById("overlay").style.display = "none";
-  canvas.style.display = "block";
-  gameStarted = true;
-  paused = false;
-  gameOver = false;
-  score = 0; lives = 3; coins = 0;
-  obstacleSpeed = 4; furyActive = false; coinStreak = 0;
-  initStars();
-  sounds.music.play();
-  update();
-}
-
-// Generar bloques
 function updateObstacles() {
   obstacles.forEach(obs => obs.y += obstacleSpeed);
   obstacles = obstacles.filter(obs => obs.y < canvas.height);
 
   if (Math.random() < 0.03) {
     const rand = Math.random();
-    let type = "danger", color = "red";
-    if (rand < 0.05) { type = "life"; color = "green"; }
-    else if (rand < 0.08) { type = "coin"; color = "gold"; }
-    else if (rand < 0.10) { type = "bomb"; color = "black"; }
-    else if (rand < 0.12) { type = "surprise"; color = "orange"; }
-    obstacles.push({ x: Math.random()*(canvas.width-40), y: 0, width: 40, height: 40, type, color });
+    let color = 'red';
+    let type = 'danger';
+    if (rand < 0.05) { color = 'lime'; type = 'life'; }
+    else if (rand < 0.08) { color = 'gold'; type = 'coin'; }
+    else if (rand < 0.10) { color = 'orange'; type = 'bomb'; }
+    else if (rand < 0.12) { color = 'gold'; type = 'surprise'; }
+    obstacles.push({ x: Math.random() * (canvas.width - 40), y: 0, width: 40, height: 40, color, type });
+  }
+  if (score % 500 === 0 && score !== 0) obstacleSpeed += 0.5;
+}
+
+function applyEffect(type) {
+  switch (type) {
+    case 'speed': player.speed += 4; activeEffect = 'speed'; effectTimer = 300; break;
+    case 'shrink': player.width = 25; player.height = 25; activeEffect = 'shrink'; effectTimer = 300; break;
+    case 'grow': player.width = 60; player.height = 60; activeEffect = 'grow'; effectTimer = 300; break;
+    case 'bomb': lives--; obstacles = []; break;
+    case 'life': lives++; break;
   }
 }
 
-// === Dibujar jugador ===
-function drawPlayer() {
-  ctx.fillStyle = furyActive ? "yellow" : "lime";
-  ctx.fillRect(player.x, player.y, player.width, player.height);
+function updateEffect() {
+  if (effectTimer > 0) {
+    effectTimer--;
+    if (effectTimer === 0) {
+      if (activeEffect === 'speed') player.speed -= 4;
+      if (activeEffect === 'shrink' || activeEffect === 'grow') {
+        player.width = 40; player.height = 40;
+      }
+      activeEffect = null;
+    }
+  }
+  if (furyActive) {
+    furyTimer--;
+    if (furyTimer <= 0) {
+      furyActive = false;
+      player.speed -= 3;
+    }
+  }
 }
 
-// === HUD ===
+function checkCollision() {
+  obstacles.forEach((obs, i) => {
+    if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
+        player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+      if (obs.type === 'danger') { lives--; coinStreak = 0; }
+      else if (obs.type === 'life') { lives++; }
+      else if (obs.type === 'coin') {
+        coins++; coinStreak++;
+        if (coinStreak >= 5 && !furyActive) {
+          furyActive = true; furyTimer = 300; player.speed += 3;
+        }
+      }
+      else if (obs.type === 'bomb') { applyEffect('bomb'); }
+      else if (obs.type === 'surprise') {
+        const effects = ['speed','shrink','grow','bomb','life'];
+        applyEffect(effects[Math.floor(Math.random()*effects.length)]);
+      }
+      obstacles.splice(i, 1);
+    }
+  });
+  if (lives <= 0) { gameOver = true; showGameOver(); }
+}
+
 function drawHUD() {
-  ctx.fillStyle = "#0ff";
-  ctx.font = "12px Press Start 2P";
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px Press Start 2P';
   ctx.fillText(`Puntos: ${score}`, 10, 20);
   ctx.fillText(`Vidas: ${lives}`, 10, 40);
   ctx.fillText(`Monedas: ${coins}`, 10, 60);
-  if (furyActive) ctx.fillText("🔥 FURIA!", 250, 20);
+  if (furyActive) ctx.fillText(`🔥FURIA!🔥`, 250, 20);
 }
 
-// === Colisiones ===
-function checkCollision() {
-  obstacles.forEach((obs, i) => {
-    if (
-      player.x < obs.x + obs.width &&
-      player.x + player.width > obs.x &&
-      player.y < obs.y + obs.height &&
-      player.y + player.height > obs.y
-    ) {
-      if (obs.type === "danger") { lives--; sounds.hit.play(); }
-      if (obs.type === "life") { lives++; sounds.life.play(); }
-      if (obs.type === "coin") {
-        coins++; coinStreak++; sounds.coin.play();
-        if (coinStreak >= 5 && !furyActive) {
-          furyActive = true; furyTimer = 300;
-          player.speed += 3; sounds.power.play();
-        }
-      }
-      if (obs.type === "bomb") { lives--; sounds.hit.play(); }
-      if (obs.type === "surprise") {
-        const effects = ["life","coin","danger"];
-        const effect = effects[Math.floor(Math.random()*effects.length)];
-        if (effect==="life"){lives++;sounds.life.play();}
-        if (effect==="coin"){coins++;sounds.coin.play();}
-        if (effect==="danger"){lives--;sounds.hit.play();}
-      }
-      obstacles.splice(i,1);
-    }
-  });
-  if (lives <= 0) gameOver = true;
+function showGameOver() {
+  ctx.fillStyle = 'red';
+  ctx.font = '16px Press Start 2P';
+  ctx.fillText('GAME OVER', 100, 300);
+  ctx.font = '10px Press Start 2P';
+  ctx.fillText('Presiona ENTER para reiniciar', 40, 330);
 }
 
-// === Loop principal ===
 function update() {
   if (paused || gameOver) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
   drawStars();
   drawPlayer();
-  obstacles.forEach(drawBlock);
+  drawObstacles();
   drawHUD();
   updateObstacles();
+  updateEffect();
   checkCollision();
-  if (furyActive) {
-    furyTimer--;
-    if (furyTimer<=0){ furyActive=false; player.speed-=3; }
-  }
   score += furyActive ? 2 : 1;
   requestAnimationFrame(update);
 }
-
-document.addEventListener("keydown", e => {
-  if ((e.key === "ArrowLeft" || e.key === "a") && player.x > 0) player.x -= player.speed;
-  if ((e.key === "ArrowRight" || e.key === "d") && player.x + player.width < canvas.width) player.x += player.speed;
-});
 </script>
 </body>
 </html>
